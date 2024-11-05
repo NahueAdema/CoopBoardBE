@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownedBoards Board[] @relation("BoardOwner")
+  boardMemberships BoardMember[]
+}
+
+
+
+model Board {
+  id Int @id @default(autoincrement())
+  title String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownerID String
+  owner User @relation("BoardOwner", fields: [ownerID], references: [id])
+  columns Column[]
+  members BoardMember[]
+  activities Activity[]
+}
+
+model Column {
+  id Int @id @default(autoincrement())
+  title String
+  order Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  boardID String
+  board Board @relation(fields: [boardID], references: [id], onDelete: Cascade)
+  cards Card[]
+}
+
+model Card {
+  id Int @id @default(autoincrement())
+  title String
+  description String?
+  order Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  columnID String
+  column Column @relation(fields: [columnID], references: [id], onDelete: Cascade)
+  labels Label[]
+  assignees CardAssignee[]
+  activities Activity[]
+}
+
+model Label{
+  id Int @id @default(autoincrement())
+  name String
+  color String
+  
+  // Relations
+  cards Card[]
+}
+
+model BoardMember {
+  id Int @id @default(autoincrement())
+  role Role @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userID String
+  user User @relation(fields: [userID], references: [id], onDelete: Cascade)
+  boardID String
+  board Board @relation(fields: [boardID], references: [id], onDelete: Cascade)
+
+  @@unique([userID, boardID])
+}
+
+model CardAssignee {
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  
+  // Relations
+  cardID String
+  card Card @relation(fields: [cardID], references: [id], onDelete: Cascade)
+  userID String
+  user User @relation(fields: [userID], references: [id], onDelete: Cascade)
+
+  @@unique([cardID, userID])
+}
+
+model Activity {
+  id Int @id @default(autoincrement())
+  type ActivityType
+  content String
+  createdAt DateTime @default(now())
+
+  // Relations
+  userID String
+  user User @relation(fields: [userID], references: [id], onDelete: Cascade)
+  boardID String
+  board Board @relation(fields: [boardID], references: [id], onDelete: Cascade)
+  cardID String
+  card Card @relation(fields: [cardID], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  VIEWER
+  EDITOR
+  MANAGER
+}
+
+enum ActivityType {
+  CARD_CREATED
+  CARD_MOVED
+  CARD_ARCHIVED
+  CARD_RESTORED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  COMMENT_ADDED
+}
