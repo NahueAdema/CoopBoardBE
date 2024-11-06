@@ -29,6 +29,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({
     status: 201,
@@ -36,12 +37,41 @@ export class AuthController {
     type: AuthResponse,
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiBody({ type: RegisterDto })
   async register(@Body() registerDto: RegisterDto) {
-    const user = await this.authService.register(
-      registerDto.email,
-      registerDto.name,
-      registerDto.password,
+    // Ahora pasamos directamente el DTO
+    const user = await this.authService.register(registerDto);
+    return user; // El token ya viene incluido en la respuesta del service
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login user' })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully logged in',
+    type: AuthResponse,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({ type: LoginDto })
+  async login(@Body() loginDto: LoginDto) {
+    const user = await this.authService.validateUser(
+      loginDto.email,
+      loginDto.password,
     );
     return this.authService.login(user);
+  }
+
+  // Opcional: Endpoint para verificar el token
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the current user profile',
+  })
+  getProfile(@Req() req) {
+    return req.user;
   }
 }

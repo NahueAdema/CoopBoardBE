@@ -6,8 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash, compare } from 'bcrypt';
-import passport from 'passport';
-import { access } from 'fs';
+import { RegisterDto } from './dto/register.dto'; // Asegúrate de importar el DTO
 
 @Injectable()
 export class AuthService {
@@ -26,6 +25,7 @@ export class AuthService {
         password: true,
       },
     });
+
     if (!user) {
       throw new BadRequestException('Invalid credentials');
     }
@@ -34,22 +34,27 @@ export class AuthService {
     if (!isPasswordCorrect) {
       throw new BadRequestException('Invalid password');
     }
+
     const { password: _, ...result } = user;
     return result;
   }
 
-  async register(email: string, password: string, name: string) {
+  async register(dto: RegisterDto) {
+    // Cambiado para usar el DTO
     const existingUser = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: dto.email },
     });
+
     if (existingUser) {
       throw new BadRequestException('Email already in use');
     }
-    const hashedPassword = await hash(password, 10);
+
+    const hashedPassword = await hash(dto.password, 10);
+
     const user = await this.prisma.user.create({
       data: {
-        email,
-        name,
+        email: dto.email,
+        name: dto.name,
         password: hashedPassword,
       },
       select: {
@@ -58,14 +63,27 @@ export class AuthService {
         name: true,
       },
     });
-    return user;
+
+    // Generamos el token inmediatamente después del registro
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: user,
+    };
   }
+
   async login(user: any) {
     const payload = {
       sub: user.id,
       email: user.email,
       name: user.name,
     };
+
     return {
       access_token: this.jwtService.sign(payload),
       user: { id: user.id, email: user.email, name: user.name },
